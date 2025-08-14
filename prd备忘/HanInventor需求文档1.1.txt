@@ -1,0 +1,101 @@
+### **产品需求文档 (PRD) v1.1 (开放式任务版)**
+
+
+**项目代号:** HanInventor
+**文档版本:** 1.1
+**撰写:** AI Master
+**日期:** 2025年8月14日, UTC+8
+
+---
+
+#### **1. 项目愿景 (Project Vision)**
+
+我们要创造一个轻量级的、叙事驱动的网页策略游戏。玩家扮演一位穿越到三国时期的现代发明家，在AI助手“天工”的帮助下，利用超越时代的知识进行发明创造，逐步提升蜀汉的国力，最终达成“匡扶汉室”的宏伟目标。游戏的核心体验是与AI合作进行创造的乐趣，以及看到自己的发明改变历史的成就感。
+
+#### **2. 核心玩法循环 (Core Gameplay Loop)**
+
+游戏以“章节”形式推进，每个章节有独立的“国力值”目标。核心循环如下：
+
+1. **触发任务**: AI“天工”系统根据当前章节，主动生成并展示一个带有情景的“机遇任务”，引导玩家的发明方向。
+2. **提出构想**: 玩家在交互区输入想要发明的物品名称。
+3. **可行性检测**: 玩家可以先点击“可行性检测”，AI会判断该构想是否符合当前时代背景，并给予引导。
+4. **引导式问答**: 玩家点击“开始研发”后，AI会通过3-4个结构化问题（如所需材料、核心用途等），引导玩家完善构想。
+5. **生成成果**: AI接收到所有回答后，生成一张包含发明蓝图（AI生成的想象图+详细描述）和奖励的“发明卡片”。
+6. **推进度**: 玩家获得“国力值”奖励，推动主进度条。当进度条达到里程碑时，触发“捷报”等叙事事件，推进游戏章节。
+
+#### **3. 技术栈与架构 (Tech Stack & Architecture)**
+
+* **前端框架**: **Vue.js 3** (使用 `<script setup>` 的组合式API风格)。
+* **构建工具**: Vite。
+* **应用架构**:
+  * **根组件 (`App.vue`)**: 作为应用的“指挥中心”，负责管理所有核心数据状态（如国力值、当前章节、历史事件等），并搭建UI的整体布局。
+  * **子组件**: 应用由三个核心子组件构成，它们接收来自`App.vue`的数据（作为Props）进行展示。
+  * **数据流**: 严格的单向数据流。状态由`App.vue`持有，通过Props向下传递给子组件。
+
+#### **4. 预期文件结构**
+
+```
+src/
+├── App.vue           # 应用主文件 (指挥中心)
+└── components/
+├── StatusDisplay.vue      # 状态与进度区
+├── InventionWorkbench.vue # 核心交互区 (发明工作台)
+└── NarrativeDisplay.vue   # 叙事与反馈区
+```
+
+#### **5. 组件详细规格 (Component Specifications)**
+
+**5.1 `App.vue` (应用指挥中心)**
+
+* **目的**: 管理全局状态，搭建布局，分发数据。
+* **数据状态 (State)**:
+  * `currentChapter` (字符串): 初始值为 "第一章：获得信任"。
+  * `nationalPower` (数字): 初始值为 0。
+  * `maxNationalPower` (数字): 初始值为 1000。
+  * `historicalEvents` (数组): 初始为空数组 `[]`。
+* **逻辑 (Logic)**:
+  * 引入并注册三个子组件。
+* **界面布局 (Template)**:
+  * 一个ID为 `game-container` 的主`div`。
+  * 内部使用`<header>`, `<main>`, `<aside>`划分三区。
+  * 在`<header>`区域: 放置`<StatusDisplay>`组件，并传递`currentChapter`, `nationalPower`, `maxNationalPower`作为Props。
+  * 在`<main>`区域: 放置`<InventionWorkbench>`组件。
+  * 在`<aside>`区域: 放置`<NarrativeDisplay>`组件，并传递`historicalEvents`作为Props。
+* **样式 (Style)**:
+  * 使用CSS Grid或Flexbox创建一个三区域（上、中、下或左、中、右）布局。
+  * 为三个区域添加不同背景色和边框，以便视觉区分。
+
+**5.2 `StatusDisplay.vue` (状态与进度区)**
+
+* **目的**: 展示玩家当前的游戏进度和目标。
+* **接收数据 (Props)**:
+  * `currentChapter` (字符串)
+  * `nationalPower` (数字)
+  * `maxNationalPower` (数字)
+* **界面 (Template)**:
+  * 显示`currentChapter`的标题 (h2)。
+  * 一个进度条，其填充宽度根据 `(nationalPower / maxNationalPower) * 100%` 动态计算。
+  * 显示具体的国力数值，格式为 "国力: [nationalPower] / [maxNationalPower]"。
+
+**5.3 `InventionWorkbench.vue` (发明工作台)**
+
+* **目的**: 玩家进行发明创造的核心交互界面。
+* **数据状态 (State)**:
+  * `inventionInput` (字符串): 用于绑定玩家输入的发明名称。
+  * `questText` (字符串): 用于显示AI生成的“机遇任务”。
+* **界面 (Template)**:
+  * 一个区域用于显示`questText`。
+  * 一个`input`输入框，与`inventionInput`双向绑定。
+  * 两个按钮：“可行性检测”和“开始研发”。
+  * （未来）一个区域用于展示引导式问答的流程。
+
+**5.4 `NarrativeDisplay.vue` (叙事与反馈区)**
+
+* **目的**: 展示游戏进程中的叙事事件和历史记录。
+* **接收数据 (Props)**:
+  * `events` (数组)。
+* **逻辑 (Logic)**:
+  * 使用`v-for`指令遍历`events`数组。
+* **界面 (Template)**:
+  * 为数组中的每一个事件，渲染一个“事件卡片”。
+  * 卡片上应显示事件的标题和描述。
