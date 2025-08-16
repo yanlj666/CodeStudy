@@ -1,133 +1,403 @@
 <template>
   <div class="invention-workbench">
-    <h3>🔬 发明工作台</h3>
+    <h2>发明工作台</h2>
     
-    <!-- 机遇任务区域 -->
-    <div class="quest-area">
-      <h4>📜 当前机遇</h4>
-      <p class="quest-text">{{ questText }}</p>
+    <!-- 初始输入阶段 -->
+    <div v-if="!isConversationStarted" class="initial-input">
+      <div class="input-group">
+        <label for="invention-input">请描述您想要发明的物品：</label>
+        <textarea 
+          id="invention-input"
+          v-model="userInput" 
+          placeholder="例如：一种能够快速清洁衣物的工具"
+          rows="3"
+        ></textarea>
+      </div>
+      <button 
+        @click="startConversation" 
+        :disabled="!userInput.trim() || isLoading"
+        class="start-btn"
+      >
+        {{ isLoading ? '启动中...' : '开始研发' }}
+      </button>
     </div>
-    
-    <!-- 发明输入区域 -->
-    <div class="invention-input-section">
-      <h4>💡 你的发明构想</h4>
-      <input 
-        v-model="inventionInput"
-        type="text" 
-        class="input-field"
-        placeholder="请输入你想要发明的物品名称..."
-        @keyup.enter="startResearch"
-      />
-      
-      <div class="button-group">
-        <button 
-          class="btn"
-          @click="checkFeasibility"
-          :disabled="!inventionInput.trim()"
+
+    <!-- 多轮对话阶段 -->
+    <div v-else class="conversation-area">
+      <div class="conversation-history">
+        <div 
+          v-for="(message, index) in messages" 
+          :key="index" 
+          :class="['message', message.role]"
         >
-          🔍 可行性检测
-        </button>
-        
+          <div class="message-header">
+            <span class="role">{{ message.role === 'user' ? '您' : 'AI天工' }}</span>
+            <span class="timestamp">{{ formatTime(message.timestamp) }}</span>
+          </div>
+          <div class="message-content">{{ message.content }}</div>
+        </div>
+      </div>
+
+      <!-- 当前AI问题显示 -->
+      <div v-if="currentAIQuestion && !isConversationComplete" class="current-question">
+        <div class="message ai">
+          <div class="message-header">
+            <span class="role">AI天工</span>
+            <span class="timestamp">{{ formatTime(Date.now()) }}</span>
+          </div>
+          <div class="message-content">{{ currentAIQuestion }}</div>
+        </div>
+      </div>
+
+      <!-- 用户回答输入 -->
+      <div v-if="!isConversationComplete" class="user-input">
+        <textarea 
+          v-model="currentUserAnswer" 
+          placeholder="请回答AI天工的问题..."
+          rows="3"
+          :disabled="isLoading"
+        ></textarea>
         <button 
-          class="btn"
-          @click="startResearch"
-          :disabled="!inventionInput.trim()"
+          @click="submitAnswer" 
+          :disabled="!currentUserAnswer.trim() || isLoading"
+          class="submit-btn"
         >
-          🚀 开始研发
+          {{ isLoading ? '思考中...' : '提交回答' }}
         </button>
       </div>
-    </div>
-    
-    <!-- AI助手天工 -->
-    <div class="ai-assistant">
-      <h4>🤖 AI助手 "天工"</h4>
-      <div class="assistant-message">
-        <p>{{ assistantMessage }}</p>
+
+      <!-- 对话完成提示 -->
+      <div v-if="isConversationComplete" class="completion-area">
+        <div class="completion-message">
+          <h3>🎉 发明方案已完善！</h3>
+          <p>AI天工已收集到足够的信息，正在为您生成最终的发明方案...</p>
+        </div>
+        <button @click="generateFinalInvention" :disabled="isGenerating" class="generate-btn">
+          {{ isGenerating ? '生成中...' : '生成发明方案' }}
+        </button>
       </div>
+
+      <!-- 重新开始按钮 -->
+      <button @click="resetConversation" class="reset-btn">重新开始</button>
     </div>
   </div>
 </template>
 
-<script setup>
-import { ref } from 'vue'
+<script>
+import { ref, reactive } from 'vue';
+import { getNextInventionQuestion, generateInvention } from '../services/aiService.js';
 
-// 组件状态
-const inventionInput = ref('')
-const questText = ref('刘备军队缺乏有效的攻城器械，无法攻破敌军坚固的城池。作为穿越而来的发明家，你能否设计出超越时代的攻城利器，帮助蜀汉军队取得战略优势？')
-const assistantMessage = ref('欢迎来到三国时代！我是你的AI助手"天工"。请告诉我你想要发明什么，我会帮助你分析可行性并指导研发过程。')
+export default {
+  name: 'InventionWorkbench',
+  emits: ['invention-completed'],
+  setup(props, { emit }) {
+    // 响应式状态
+    const userInput = ref('');
+    const currentUserAnswer = ref('');
+    const currentAIQuestion = ref('');
+    const isLoading = ref(false);
+    const isGenerating = ref(false);
+    const isConversationStarted = ref(false);
+    const isConversationComplete = ref(false);
+    const messages = reactive([]);
 
-// 可行性检测
-const checkFeasibility = () => {
-  if (!inventionInput.value.trim()) return
-  
-  // 这里将来会接入真正的AI API
-  assistantMessage.value = `正在分析"${inventionInput.value}"的可行性...\n\n基于当前三国时期的技术水平和材料条件，这个发明构想具有一定的可行性。建议考虑以下几个方面：\n1. 所需材料是否容易获得\n2. 制作工艺是否符合当时技术水平\n3. 实用性和战略价值\n\n点击"开始研发"进入详细设计阶段。`
-}
+    // 开始对话
+    const startConversation = async () => {
+      if (!userInput.value.trim()) return;
+      
+      isLoading.value = true;
+      isConversationStarted.value = true;
+      
+      // 添加用户初始输入到消息历史
+      const initialMessage = {
+        role: 'user',
+        content: userInput.value,
+        timestamp: Date.now()
+      };
+      messages.push(initialMessage);
+      
+      try {
+        // 获取AI的第一个问题
+        const aiQuestion = await getNextInventionQuestion([initialMessage]);
+        
+        if (aiQuestion === '##DONE##') {
+          // 如果AI认为信息已足够，直接完成对话
+          isConversationComplete.value = true;
+        } else {
+          currentAIQuestion.value = aiQuestion;
+        }
+      } catch (error) {
+        console.error('启动对话失败:', error);
+        alert('启动对话失败，请重试');
+        resetConversation();
+      } finally {
+        isLoading.value = false;
+      }
+    };
 
-// 开始研发
-const startResearch = () => {
-  if (!inventionInput.value.trim()) return
-  
-  // 这里将来会启动引导式问答流程
-  assistantMessage.value = `很好！让我们开始研发"${inventionInput.value}"。\n\n我需要了解一些细节来帮助你完善这个发明：\n\n第一个问题：这个发明的主要用途是什么？请详细描述它要解决的具体问题。`
-}
+    // 提交用户回答
+    const submitAnswer = async () => {
+      if (!currentUserAnswer.value.trim()) return;
+      
+      isLoading.value = true;
+      
+      // 添加AI问题到消息历史
+      messages.push({
+        role: 'assistant',
+        content: currentAIQuestion.value,
+        timestamp: Date.now() - 1000 // 稍微早一点的时间戳
+      });
+      
+      // 添加用户回答到消息历史
+      const userMessage = {
+        role: 'user',
+        content: currentUserAnswer.value,
+        timestamp: Date.now()
+      };
+      messages.push(userMessage);
+      
+      try {
+        // 获取AI的下一个问题
+        const nextQuestion = await getNextInventionQuestion([...messages]);
+        
+        if (nextQuestion === '##DONE##') {
+          // 对话完成
+          isConversationComplete.value = true;
+          currentAIQuestion.value = '';
+        } else {
+          // 继续对话
+          currentAIQuestion.value = nextQuestion;
+        }
+        
+        // 清空当前回答
+        currentUserAnswer.value = '';
+      } catch (error) {
+        console.error('提交回答失败:', error);
+        alert('提交回答失败，请重试');
+      } finally {
+        isLoading.value = false;
+      }
+    };
+
+    // 生成最终发明方案
+    const generateFinalInvention = async () => {
+      isGenerating.value = true;
+      
+      try {
+        // 将完整的对话历史转换为单一的发明描述
+        const conversationSummary = messages
+          .filter(msg => msg.role === 'user')
+          .map(msg => msg.content)
+          .join(' ');
+        
+        // 调用原有的发明生成API
+        const inventionResult = await generateInvention(conversationSummary);
+        
+        // 将完整的会话历史和发明结果传递给父组件
+        emit('invention-completed', {
+          conversationHistory: [...messages],
+          inventionResult: inventionResult,
+          originalInput: userInput.value
+        });
+        
+        // 重置组件状态
+        resetConversation();
+      } catch (error) {
+        console.error('生成发明方案失败:', error);
+        alert('生成发明方案失败，请重试');
+      } finally {
+        isGenerating.value = false;
+      }
+    };
+
+    // 重置对话
+    const resetConversation = () => {
+      userInput.value = '';
+      currentUserAnswer.value = '';
+      currentAIQuestion.value = '';
+      isConversationStarted.value = false;
+      isConversationComplete.value = false;
+      isLoading.value = false;
+      isGenerating.value = false;
+      messages.length = 0; // 清空数组
+    };
+
+    // 格式化时间
+    const formatTime = (timestamp) => {
+      return new Date(timestamp).toLocaleTimeString('zh-CN', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    };
+
+    return {
+      userInput,
+      currentUserAnswer,
+      currentAIQuestion,
+      isLoading,
+      isGenerating,
+      isConversationStarted,
+      isConversationComplete,
+      messages,
+      startConversation,
+      submitAnswer,
+      generateFinalInvention,
+      resetConversation,
+      formatTime
+    };
+  }
+};
 </script>
 
 <style scoped>
 .invention-workbench {
-  height: 100%;
-}
-
-.invention-workbench h3 {
-  color: #2c3e50;
-  margin-bottom: 20px;
-  font-size: 22px;
-}
-
-.invention-workbench h4 {
-  color: #34495e;
-  margin-bottom: 15px;
-  font-size: 18px;
-}
-
-.quest-text {
-  font-size: 16px;
-  line-height: 1.6;
-  color: #856404;
-}
-
-.invention-input-section {
+  padding: 20px;
+  border: 2px solid #8B4513;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #F5E6D3 0%, #E8D5B7 100%);
   margin: 20px 0;
 }
 
-.button-group {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+.invention-workbench h2 {
+  color: #8B4513;
+  text-align: center;
+  margin-bottom: 20px;
+  font-family: '楷体', serif;
 }
 
-.btn:disabled {
-  opacity: 0.6;
+.input-group {
+  margin-bottom: 15px;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 5px;
+  color: #8B4513;
+  font-weight: bold;
+}
+
+.input-group textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #D2B48C;
+  border-radius: 5px;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.start-btn, .submit-btn, .generate-btn {
+  background: linear-gradient(135deg, #DAA520 0%, #B8860B 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.start-btn:hover, .submit-btn:hover, .generate-btn:hover {
+  background: linear-gradient(135deg, #B8860B 0%, #DAA520 100%);
+  transform: translateY(-2px);
+}
+
+.start-btn:disabled, .submit-btn:disabled, .generate-btn:disabled {
+  background: #ccc;
   cursor: not-allowed;
   transform: none;
 }
 
-.ai-assistant {
-  margin-top: 30px;
+.conversation-area {
+  max-height: 600px;
+  overflow-y: auto;
 }
 
-.assistant-message {
-  background: #e8f4fd;
-  border: 2px solid #3498db;
-  border-radius: 10px;
-  padding: 15px;
-  min-height: 100px;
+.conversation-history {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 20px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 5px;
 }
 
-.assistant-message p {
-  margin: 0;
-  line-height: 1.6;
-  white-space: pre-line;
-  color: #2c3e50;
+.message {
+  margin-bottom: 15px;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.message.user {
+  background: #E6F3FF;
+  margin-left: 20px;
+}
+
+.message.assistant {
+  background: #FFF8DC;
+  margin-right: 20px;
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+  font-size: 12px;
+  color: #666;
+}
+
+.role {
+  font-weight: bold;
+}
+
+.message-content {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.current-question {
+  margin-bottom: 20px;
+}
+
+.user-input {
+  margin-bottom: 20px;
+}
+
+.user-input textarea {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.completion-area {
+  text-align: center;
+  padding: 20px;
+  background: rgba(144, 238, 144, 0.3);
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.completion-message h3 {
+  color: #228B22;
+  margin-bottom: 10px;
+}
+
+.completion-message p {
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.reset-btn {
+  background: #DC143C;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  float: right;
+}
+
+.reset-btn:hover {
+  background: #B22222;
 }
 </style>
