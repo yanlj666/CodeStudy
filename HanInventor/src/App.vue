@@ -11,8 +11,19 @@ import {
   hasSavedGameState
 } from './services/gameState.js';
 import { getNewQuest } from './services/aiService.js';
+import { useThemeStore } from './stores/themeStore.js';
 
 // 游戏状态管理
+const themeStore = useThemeStore();
+
+watch(
+  () => themeStore.currentTheme,
+  (theme) => {
+    document.body.className = theme;
+  },
+  { immediate: true }
+);
+
 const currentChapter = ref("第一章：立足蜀中，获得信任")
 const nationalPower = ref(0)
 const maxNationalPower = ref(1000)
@@ -208,7 +219,7 @@ const handleRequestNewQuest = async () => {
 };
 
 // 获取新机遇任务的函数
-const getNewQuestTask = async (forceRefresh = false) => {
+const getNewQuestTask = async () => {
   try {
     currentQuest.value = '天工正在思考新的机遇...';
     const questResult = await getNewQuest(currentChapter.value);
@@ -334,7 +345,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div id="app">
+  <div id="app" :class="themeStore.currentTheme">
     <StatusDisplay
       :current-chapter="currentChapter"
       :national-power="nationalPower"

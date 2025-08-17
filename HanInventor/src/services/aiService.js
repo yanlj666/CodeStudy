@@ -6,11 +6,9 @@ import {
   createInventionUserPrompt,
   createQuestUserPrompt
 } from '../prompts.js';
-import { 
-  getInventionTools, 
-  getQuestTools, 
-  getQuestWithSuggestionsTools,
-  handleToolCall 
+import {
+  getInventionTools,
+  getQuestWithSuggestionsTools
 } from '../tools.js';
 
 // 使用代理路径而非直接调用外部API

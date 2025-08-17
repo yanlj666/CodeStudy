@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { useThemeStore } from '../stores/themeStore.js'
 
 // 定义Props
 const props = defineProps({
@@ -19,6 +20,7 @@ const props = defineProps({
 
 // 定义事件
 const emit = defineEmits(['restart-game'])
+const themeStore = useThemeStore()
 
 // 计算进度百分比
 const progressPercentage = computed(() => {
@@ -30,9 +32,14 @@ const progressPercentage = computed(() => {
   <div class="status-display">
     <div class="status-header">
       <h1>{{ currentChapter }} - 匡扶汉室的发明家</h1>
-      <button @click="emit('restart-game')" class="restart-btn" title="重新开始游戏">
-        🔄 重新开始
-      </button>
+      <div class="button-group">
+        <button @click="emit('restart-game')" class="restart-btn" title="重新开始游戏">
+          🔄 重新开始
+        </button>
+        <button @click="themeStore.toggleTheme()" class="theme-btn">
+          {{ themeStore.currentTheme === 'day' ? '🌙 夜间模式' : '☀️ 日间模式' }}
+        </button>
+      </div>
     </div>
     
     <div class="power-display">
@@ -84,6 +91,27 @@ const progressPercentage = computed(() => {
 
 .restart-btn:hover {
   background: #B22222;
+  transform: scale(1.05);
+}
+
+.button-group {
+  display: flex;
+  gap: 10px;
+}
+
+.theme-btn {
+  background: #1e90ff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.theme-btn:hover {
+  background: #4169e1;
   transform: scale(1.05);
 }
 
