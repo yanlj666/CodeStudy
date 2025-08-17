@@ -3,6 +3,8 @@
  * 使用localStorage实现游戏进度的本地持久化
  */
 
+import { storyline } from '../constants/storyline.js';
+
 const GAME_STATE_KEY = 'hanInventor_gameState';
 
 /**
@@ -70,10 +72,7 @@ export function getInitialGameState() {
     currentChapter: '第一章：立足蜀中，获得信任', // 修正初始值与App.vue保持一致
     historicalEvents: [],
     inventionResults: {},
-    questQueue: [
-      "丞相府邸传来消息，今年的蜀中雨水过多，许多农具因潮湿而加速朽坏，来年春耕恐受影响，百姓忧心忡忡。你是否能构想一种更耐久的材料，或是一种能提升耕作效率的新式农具？",
-      "军医处传来简报，军士在潮湿环境下，伤口极易感染恶化，非战斗减员日益增多。寻常的布帛和草药，已难堪大用。你是否有办法创造出更有效的清创和包扎之物？"
-    ],
+    questQueue: storyline[0].subStages[0].tasks,
     isInventing: false
   };
 }
