@@ -2,6 +2,25 @@
   <div class="invention-workbench">
     <h2>发明工作台</h2>
     
+    <!-- 当前机遇任务显示 -->
+    <div v-if="currentQuest" class="current-quest">
+      <h3>📜 当前机遇</h3>
+      <div class="quest-content">
+        <div v-if="!showFullQuest" class="quest-summary">
+          {{ questSummary }}
+          <button v-if="hasMoreContent" @click="toggleQuestDisplay" class="expand-btn">
+            展开详情 ▼
+          </button>
+        </div>
+        <div v-else class="quest-full">
+          <div class="quest-parsed" v-html="parsedQuestContent"></div>
+          <button @click="toggleQuestDisplay" class="collapse-btn">
+            收起详情 ▲
+          </button>
+        </div>
+      </div>
+    </div>
+    
     <!-- 初始输入阶段 -->
     <div v-if="!isConversationStarted" class="initial-input">
       <div class="input-group">
@@ -84,11 +103,17 @@
 </template>
 
 <script>
-import { ref, reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { getNextInventionQuestion, generateInvention } from '../services/aiService.js';
 
 export default {
   name: 'InventionWorkbench',
+  props: {
+    currentQuest: {
+      type: String,
+      default: ''
+    }
+  },
   emits: ['invention-completed'],
   setup(props, { emit }) {
     // 响应式状态
@@ -100,6 +125,94 @@ export default {
     const isConversationStarted = ref(false);
     const isConversationComplete = ref(false);
     const messages = reactive([]);
+    
+    // 任务显示控制
+    const showFullQuest = ref(false);
+    
+    // 解析任务内容，提取核心信息
+    const parseQuestContent = (content) => {
+      if (!content) return { summary: '', full: '', hasMore: false };
+      
+      // 移除AI调用过程的描述
+      let cleanContent = content
+        .replace(/好的，我将为.*?生成.*?任务。/g, '')
+        .replace(/调用.*?工具.*?如下：/g, '')
+        .replace(/---\s*/g, '')
+        .replace(/此任务旨在.*$/g, '')
+        .replace(/希望这个任务.*$/g, '')
+        .trim();
+      
+      // 提取任务标题和描述
+      const titleMatch = cleanContent.match(/\*\*机遇任务：《(.+?)》\*\*/);
+      const descMatch = cleanContent.match(/\*\*任务描述：\*\*\s*([\s\S]*?)(?=\*\*任务目标：|$)/);
+      const goalMatch = cleanContent.match(/\*\*任务目标：\*\*\s*([\s\S]*?)(?=\*\*任务难度：|$)/);
+      const difficultyMatch = cleanContent.match(/\*\*任务难度：\*\*\s*([\s\S]*?)(?=\*\*奖励：|$)/);
+      
+      const title = titleMatch ? titleMatch[1] : '';
+      const description = descMatch ? descMatch[1].trim() : '';
+      const goal = goalMatch ? goalMatch[1].trim() : '';
+      const difficulty = difficultyMatch ? difficultyMatch[1].trim() : '';
+      
+      // 生成简要摘要（标题 + 简短描述）
+      let summary = '';
+      if (title) {
+        summary = `《${title}》`;
+        if (description) {
+          const shortDesc = description.length > 60 ? description.substring(0, 60) + '...' : description;
+          summary += `\n${shortDesc}`;
+        }
+      } else {
+        // 如果没有结构化内容，取前100个字符
+        summary = cleanContent.length > 100 ? cleanContent.substring(0, 100) + '...' : cleanContent;
+      }
+      
+      // 生成格式化的完整内容
+      let fullContent = '';
+      if (title) {
+        fullContent += `<h4>《${title}》</h4>`;
+      }
+      if (description) {
+        fullContent += `<p><strong>任务描述：</strong>${description}</p>`;
+      }
+      if (goal) {
+        fullContent += `<p><strong>任务目标：</strong>${goal}</p>`;
+      }
+      if (difficulty) {
+        fullContent += `<p><strong>难度：</strong>${difficulty}</p>`;
+      }
+      
+      // 如果没有结构化内容，使用原始内容
+      if (!fullContent) {
+        fullContent = cleanContent.replace(/\n/g, '<br>');
+      }
+      
+      return {
+        summary: summary,
+        full: fullContent,
+        hasMore: cleanContent.length > 100 || (title && (description || goal))
+      };
+    };
+    
+    // 计算属性
+    const questSummary = computed(() => {
+      const parsed = parseQuestContent(props.currentQuest);
+      return parsed.summary;
+    });
+    
+    const parsedQuestContent = computed(() => {
+      const parsed = parseQuestContent(props.currentQuest);
+      return parsed.full;
+    });
+    
+    const hasMoreContent = computed(() => {
+      const parsed = parseQuestContent(props.currentQuest);
+      return parsed.hasMore;
+    });
+    
+    // 切换任务显示状态
+    const toggleQuestDisplay = () => {
+      showFullQuest.value = !showFullQuest.value;
+    };
 
     // 开始对话
     const startConversation = async () => {
@@ -239,6 +352,11 @@ export default {
       isConversationStarted,
       isConversationComplete,
       messages,
+      showFullQuest,
+      questSummary,
+      parsedQuestContent,
+      hasMoreContent,
+      toggleQuestDisplay,
       startConversation,
       submitAnswer,
       generateFinalInvention,
@@ -274,6 +392,77 @@ export default {
   margin-bottom: 5px;
   color: #8B4513;
   font-weight: bold;
+}
+
+.current-quest {
+  background: linear-gradient(135deg, #FFF8DC 0%, #F0E68C 100%);
+  border: 2px solid #DAA520;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.current-quest h3 {
+  color: #B8860B;
+  margin: 0 0 10px 0;
+  font-family: '楷体', serif;
+  font-size: 18px;
+}
+
+.quest-content {
+  color: #8B4513;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.quest-summary {
+  white-space: pre-line;
+}
+
+.quest-full {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.quest-parsed {
+  margin-bottom: 10px;
+}
+
+.quest-parsed h4 {
+  color: #B8860B;
+  margin: 0 0 10px 0;
+  font-size: 16px;
+}
+
+.quest-parsed p {
+  margin: 8px 0;
+  line-height: 1.5;
+}
+
+.quest-parsed strong {
+  color: #8B4513;
+}
+
+.expand-btn, .collapse-btn {
+  background: linear-gradient(135deg, #DAA520 0%, #B8860B 100%);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: all 0.2s ease;
+}
+
+.expand-btn:hover, .collapse-btn:hover {
+  background: linear-gradient(135deg, #B8860B 0%, #DAA520 100%);
+  transform: translateY(-1px);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .input-group textarea {

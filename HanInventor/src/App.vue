@@ -10,18 +10,15 @@ import {
   getInitialGameState,
   hasSavedGameState
 } from './services/gameState.js';
+import { getNewQuest } from './services/aiService.js';
 
 // 游戏状态管理
 const currentChapter = ref("第一章：立足蜀中，获得信任")
 const nationalPower = ref(0)
 const maxNationalPower = ref(1000)
 
-// 用于驱动游戏流程的预设脚本
-const questQueue = reactive([
-  "丞相府邸传来消息，今年的蜀中雨水过多，许多农具因潮湿而加速朽坏，来年春耕恐受影响，百姓忧心忡忡。你是否能构想一种更耐久的材料，或是一种能提升耕作效率的新式农具？",
-  "军医处传来简报，军士在潮湿环境下，伤口极易感染恶化，非战斗减员日益增多。寻常的布帛和草药，已难堪大用。你是否有办法创造出更有效的清创和包扎之物？"
-])
-const currentQuest = ref(questQueue[0])
+// 当前机遇任务（由AI动态生成）
+const currentQuest = ref('')
 
 // 发明成果数据
 const inventionResults = reactive({
@@ -50,7 +47,7 @@ const getCurrentGameState = () => {
     currentChapter: currentChapter.value,
     historicalEvents: [...historicalEvents],
     inventionResults: { ...inventionResults },
-    questQueue: [...questQueue],
+    currentQuest: currentQuest.value,
     isInventing: isInventing.value
   };
 };
@@ -73,11 +70,7 @@ const applyGameState = (state) => {
     Object.assign(inventionResults, state.inventionResults);
   }
 
-  questQueue.length = 0;
-  if (state.questQueue) {
-    questQueue.push(...state.questQueue);
-  }
-
+  currentQuest.value = state.currentQuest || '';
   isInventing.value = state.isInventing || false;
 };
 
@@ -122,6 +115,17 @@ const handleInventionCompleted = async (data) => {
 
     console.log('发明完成，游戏状态已更新');
 
+    // 获取新的机遇任务
+    try {
+      currentQuest.value = '天工正在思考新的机遇...';
+      const newQuest = await getNewQuest(currentChapter.value);
+      currentQuest.value = newQuest;
+      console.log('新任务已生成:', newQuest);
+    } catch (error) {
+      console.error('获取新任务失败:', error);
+      currentQuest.value = '暂时无法获取新任务，请稍后再试。';
+    }
+
   } catch (error) {
     console.error('处理发明完成事件失败:', error);
   } finally {
@@ -158,6 +162,19 @@ onMounted(async () => {
     console.log('未找到保存的游戏状态，使用初始状态');
   }
 
+  // 如果没有当前任务，获取新任务
+  if (!currentQuest.value) {
+    try {
+      currentQuest.value = '天工正在思考新的机遇...';
+      const newQuest = await getNewQuest(currentChapter.value);
+      currentQuest.value = newQuest;
+      console.log('初始任务已生成:', newQuest);
+    } catch (error) {
+      console.error('获取初始任务失败:', error);
+      currentQuest.value = '暂时无法获取任务，请稍后再试。';
+    }
+  }
+
   gameStateLoaded.value = true;
 
   // 等待下一个tick后开始监听状态变化
@@ -184,7 +201,10 @@ onMounted(async () => {
       @restart-game="restartGame"
     />
 
-    <InventionWorkbench @invention-completed="handleInventionCompleted" />
+    <InventionWorkbench 
+      :current-quest="currentQuest"
+      @invention-completed="handleInventionCompleted" 
+    />
 
     <NarrativeDisplay :events="historicalEvents" />
 
