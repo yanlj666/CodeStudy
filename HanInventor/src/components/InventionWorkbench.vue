@@ -493,12 +493,32 @@ export default {
 }
 
 .current-quest {
-  background: linear-gradient(135deg, #FFF8DC 0%, #F0E68C 100%);
+  background: url('/assets/scroll-bg.png') center/cover no-repeat;
   border: 2px solid #DAA520;
   border-radius: 8px;
-  padding: 15px;
+  padding: 15px 40px;
   margin-bottom: 20px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  position: relative;
+}
+.current-quest::before,
+.current-quest::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 40px;
+  height: 100%;
+  background-size: contain;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+.current-quest::before {
+  left: 0;
+  background-image: url('/assets/scroll-left.png');
+}
+.current-quest::after {
+  right: 0;
+  background-image: url('/assets/scroll-right.png');
 }
 
 .quest-header {
@@ -516,28 +536,8 @@ export default {
 }
 
 .new-quest-btn {
-  background: linear-gradient(135deg, #FF6B6B 0%, #FF5252 100%);
-  color: white;
-  border: none;
   padding: 8px 16px;
-  border-radius: 6px;
   font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-weight: bold;
-}
-
-.new-quest-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #FF5252 0%, #FF6B6B 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(255, 107, 107, 0.3);
-}
-
-.new-quest-btn:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
 }
 
 .quest-content {
@@ -574,20 +574,9 @@ export default {
 }
 
 .expand-btn, .collapse-btn {
-  background: linear-gradient(135deg, #DAA520 0%, #B8860B 100%);
-  color: white;
-  border: none;
   padding: 6px 12px;
-  border-radius: 4px;
   font-size: 12px;
-  cursor: pointer;
   margin-top: 8px;
-  transition: all 0.2s ease;
-}
-
-.expand-btn:hover, .collapse-btn:hover {
-  background: linear-gradient(135deg, #B8860B 0%, #DAA520 100%);
-  transform: translateY(-1px);
 }
 
 @keyframes fadeIn {
@@ -606,31 +595,36 @@ export default {
 }
 
 .start-btn, .submit-btn, .generate-btn {
-  background: linear-gradient(135deg, #DAA520 0%, #B8860B 100%);
-  color: white;
-  border: none;
   padding: 12px 24px;
-  border-radius: 5px;
-  cursor: pointer;
   font-size: 16px;
   font-weight: bold;
-  transition: all 0.3s ease;
-}
-
-.start-btn:hover, .submit-btn:hover, .generate-btn:hover {
-  background: linear-gradient(135deg, #B8860B 0%, #DAA520 100%);
-  transform: translateY(-2px);
-}
-
-.start-btn:disabled, .submit-btn:disabled, .generate-btn:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-  transform: none;
 }
 
 .conversation-area {
   max-height: 600px;
   overflow-y: auto;
+  background: url('/assets/scroll-bg.png') center/cover no-repeat;
+  position: relative;
+  padding: 20px 40px;
+}
+.conversation-area::before,
+.conversation-area::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 40px;
+  height: 100%;
+  background-size: contain;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+.conversation-area::before {
+  left: 0;
+  background-image: url('/assets/scroll-left.png');
+}
+.conversation-area::after {
+  right: 0;
+  background-image: url('/assets/scroll-right.png');
 }
 
 .conversation-history {
@@ -713,17 +707,43 @@ export default {
 }
 
 .reset-btn {
-  background: #DC143C;
-  color: white;
-  border: none;
   padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
   font-size: 14px;
   float: right;
 }
-
-.reset-btn:hover {
-  background: #B22222;
+.start-btn, .submit-btn, .generate-btn, .new-quest-btn, .expand-btn, .collapse-btn, .reset-btn {
+  background: #fdf5e6;
+  color: #000;
+  border: 2px solid #000;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.3s ease;
+  position: relative;
+  overflow: hidden;
 }
+
+.start-btn:disabled, .submit-btn:disabled, .generate-btn:disabled, .new-quest-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.start-btn::after, .submit-btn::after, .generate-btn::after, .new-quest-btn::after, .expand-btn::after, .collapse-btn::after, .reset-btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.4s ease, height 0.4s ease;
+  pointer-events: none;
+}
+
+.start-btn:hover::after, .submit-btn:hover::after, .generate-btn:hover::after, .new-quest-btn:hover::after, .expand-btn:hover::after, .collapse-btn:hover::after, .reset-btn:hover::after {
+  width: 200%;
+  height: 200%;
+}
+
 </style>
