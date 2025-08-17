@@ -1,0 +1,17 @@
+@font-face {
+  font-family: 'FangSong';
+  src: url('/fonts/fangsong.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'XingKai';
+  src: url('/fonts/xingkai.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+body {
+  font-family: 'FangSong', '楷体', serif;
+}
