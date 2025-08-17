@@ -63,12 +63,45 @@ export function createInventionUserPrompt(playerInputs) {
 }
 
 // 创建机遇任务和发明建议生成用户指令
-// 增加了任务阶段变化和发明建议
-export function createQuestUserPrompt(chapter, recentInventions = []) {
+// 根据不同类别提供相应背景提示与示例
+export function createQuestUserPrompt(chapter, subStage, category, recentInventions = []) {
+  const CATEGORY_GUIDES = {
+    '军事': {
+      background: '聚焦提升军队战斗力与后勤效率，注意战略与士气。',
+      example: '示例：改良弩机以提升射程，或设计军用通信旗语系统。'
+    },
+    '民生': {
+      background: '关注百姓衣食住行与社会稳定，让生活更加便利。',
+      example: '示例：发明耐磨农具或改良取暖方式以改善民生。'
+    },
+    '农业': {
+      background: '围绕耕作、灌溉及粮食储藏，提升产量与效率。',
+      example: '示例：设计高效灌溉工具或改良农作物处理方法。'
+    },
+    '工艺': {
+      background: '提升手工业与制造技术，强调工坊生产效率。',
+      example: '示例：改进纺织机或优化铸造工艺。'
+    },
+    '医疗': {
+      background: '涉及疾病防治与医用器具，保障军民健康。',
+      example: '示例：开发止血药粉或设计便携式治疗工具。'
+    },
+    '建筑': {
+      background: '关注建筑结构与施工技术，增强城防与居住安全。',
+      example: '示例：发明抗震结构或提升城墙加固技术。'
+    }
+  };
+
+  const guide = CATEGORY_GUIDES[category] || { background: '', example: '' };
+
   return `当前游戏阶段："${chapter}"。
+当前子阶段：${subStage}。
+任务类别：${category}。
+${guide.background ? `背景提示：${guide.background}` : ''}
+${guide.example ? `参考示例：${guide.example}` : ''}
 最近完成的发明包括：${recentInventions.length ? recentInventions.join("，") : "（无）"}。
 
-请生成一个机遇任务和相关的发明建议，并使用 generateQuestWithSuggestions 工具返回结果。
+请生成一个属于${category}类别的机遇任务和相关的发明建议，并使用 generateQuestWithSuggestions 工具返回结果。
 要求：
 - 任务不要与最近发明重复
 - 场景设定生动，符合历史背景

@@ -17,6 +17,12 @@ const currentChapter = ref("第一章：立足蜀中，获得信任")
 const nationalPower = ref(0)
 const maxNationalPower = ref(1000)
 
+// 子阶段与类别管理
+const currentSubStage = ref(1)
+const allCategories = ['军事', '民生', '农业', '工艺', '医疗', '建筑']
+const availableCategories = ref([...allCategories])
+const currentCategory = ref('')
+
 // 当前机遇任务（由AI动态生成）
 const currentQuest = ref('')
 
@@ -46,6 +52,8 @@ const getCurrentGameState = () => {
     nationalPower: nationalPower.value,
     maxNationalPower: maxNationalPower.value,
     currentChapter: currentChapter.value,
+    subStage: currentSubStage.value,
+    availableCategories: [...availableCategories.value],
     historicalEvents: [...historicalEvents],
     inventionResults: { ...inventionResults },
     currentQuest: currentQuest.value,
@@ -59,6 +67,8 @@ const applyGameState = (state) => {
   nationalPower.value = state.nationalPower || 50;
   maxNationalPower.value = state.maxNationalPower || 100;
   currentChapter.value = state.currentChapter || '东汉末年';
+  currentSubStage.value = state.subStage || 1;
+  availableCategories.value = state.availableCategories && state.availableCategories.length ? [...state.availableCategories] : [...allCategories];
 
   historicalEvents.length = 0;
   if (state.historicalEvents) {
@@ -126,7 +136,7 @@ const handleInventionCompleted = async (data) => {
 
     // 获取新的机遇任务
     try {
-      await getNewQuestTask(true);
+      await getNewQuestTask();
       console.log('发明完成后，新任务已生成');
       
       // 立即保存游戏状态，确保所有变化被持久化
@@ -190,7 +200,7 @@ const handleRequestNewQuest = async () => {
       historicalEvents.unshift(newEvent);
       
       // 获取新的机遇任务
-      await getNewQuestTask(true);
+      await getNewQuestTask();
       
       // 立即保存游戏状态，确保国力值变化和新任务被持久化
       const currentState = getCurrentGameState();
@@ -208,10 +218,15 @@ const handleRequestNewQuest = async () => {
 };
 
 // 获取新机遇任务的函数
-const getNewQuestTask = async (forceRefresh = false) => {
+const getNewQuestTask = async () => {
   try {
     currentQuest.value = '天工正在思考新的机遇...';
-    const questResult = await getNewQuest(currentChapter.value);
+    if (availableCategories.value.length === 0) {
+      currentSubStage.value++;
+      availableCategories.value = [...allCategories];
+    }
+    currentCategory.value = availableCategories.value.shift();
+    const questResult = await getNewQuest(currentChapter.value, currentSubStage.value, currentCategory.value);
     
     // 处理新的返回格式（包含任务和发明建议）
     if (questResult && typeof questResult === 'object' && questResult.quest) {
@@ -312,8 +327,9 @@ onMounted(async () => {
 
   // 监听所有核心状态的变化，实时保存
   watch(
-    [nationalPower, maxNationalPower, currentChapter, currentQuest, isInventing, 
-     () => [...historicalEvents], 
+    [nationalPower, maxNationalPower, currentChapter, currentSubStage, currentQuest, isInventing,
+     () => [...availableCategories.value],
+     () => [...historicalEvents],
      () => ({ ...inventionResults }),
      () => window.currentInventionSuggestions],
     () => {

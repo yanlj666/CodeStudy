@@ -21,8 +21,8 @@ export default defineConfig({
         target: 'https://dashscope.aliyuncs.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/dashscope/, ''),
-        configure: (proxy, options) => {
-          proxy.on('proxyReq', (proxyReq, req, res) => {
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
             // 添加必要的请求头
             proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
           });

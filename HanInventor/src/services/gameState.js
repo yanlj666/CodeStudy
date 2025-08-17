@@ -15,6 +15,8 @@ export function saveGameState(state) {
       nationalPower: state.nationalPower,
       maxNationalPower: state.maxNationalPower,
       currentChapter: state.currentChapter,
+      subStage: state.subStage,
+      availableCategories: state.availableCategories || [],
       historicalEvents: state.historicalEvents || [],
       inventionResults: state.inventionResults || {},
       currentQuest: state.currentQuest || '', // 保存当前任务
@@ -68,6 +70,8 @@ export function getInitialGameState() {
     nationalPower: 0, // 修正初始值与App.vue保持一致
     maxNationalPower: 1000, // 修正初始值与App.vue保持一致
     currentChapter: '第一章：立足蜀中，获得信任', // 修正初始值与App.vue保持一致
+    subStage: 1,
+    availableCategories: ['军事', '民生', '农业', '工艺', '医疗', '建筑'],
     historicalEvents: [],
     inventionResults: {},
     questQueue: [

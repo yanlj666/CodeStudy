@@ -6,11 +6,9 @@ import {
   createInventionUserPrompt,
   createQuestUserPrompt
 } from '../prompts.js';
-import { 
-  getInventionTools, 
-  getQuestTools, 
-  getQuestWithSuggestionsTools,
-  handleToolCall 
+import {
+  getInventionTools,
+  getQuestWithSuggestionsTools
 } from '../tools.js';
 
 // 使用代理路径而非直接调用外部API
@@ -293,7 +291,7 @@ export async function getNextInventionQuestion(messages) {
  * @param {string} chapter - 当前游戏章节
  * @returns {string} 格式化的任务描述
  */
-export async function getNewQuest(chapter) {
+export async function getNewQuest(chapter, subStage, category) {
   if (!API_KEY || API_KEY === 'your_actual_api_key_here') {
     throw new Error('API密钥未配置，请在.env.local文件中设置VITE_ALIYUN_API_KEY');
   }
@@ -304,12 +302,22 @@ export async function getNewQuest(chapter) {
     chapter = '东汉末年';
   }
 
+  // 验证subStage和category参数
+  if (typeof subStage !== 'number' || subStage < 1) {
+    subStage = 1;
+  }
+  if (!category || typeof category !== 'string') {
+    category = '民生';
+  }
+
   try {
-    const userPrompt = createQuestUserPrompt(chapter);
+    const userPrompt = createQuestUserPrompt(chapter, subStage, category);
     const tools = getQuestWithSuggestionsTools();
-    
+
     console.log('=== 生成机遇任务和发明建议 ===');
     console.log('当前章节:', chapter);
+    console.log('当前子阶段:', subStage);
+    console.log('任务类别:', category);
     console.log('用户提示词长度:', userPrompt?.length || 0);
     console.log('用户提示词内容:', userPrompt);
     console.log('系统提示词长度:', QUEST_SYSTEM_PROMPT?.length || 0);
