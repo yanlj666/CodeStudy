@@ -126,7 +126,7 @@ const handleInventionCompleted = async (data) => {
 
     // 获取新的机遇任务
     try {
-      await getNewQuestTask(true);
+      await getNewQuestTask();
       console.log('发明完成后，新任务已生成');
       
       // 立即保存游戏状态，确保所有变化被持久化
@@ -190,7 +190,7 @@ const handleRequestNewQuest = async () => {
       historicalEvents.unshift(newEvent);
       
       // 获取新的机遇任务
-      await getNewQuestTask(true);
+      await getNewQuestTask();
       
       // 立即保存游戏状态，确保国力值变化和新任务被持久化
       const currentState = getCurrentGameState();
@@ -208,7 +208,7 @@ const handleRequestNewQuest = async () => {
 };
 
 // 获取新机遇任务的函数
-const getNewQuestTask = async (forceRefresh = false) => {
+const getNewQuestTask = async () => {
   try {
     currentQuest.value = '天工正在思考新的机遇...';
     const questResult = await getNewQuest(currentChapter.value);
