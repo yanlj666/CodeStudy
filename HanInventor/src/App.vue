@@ -20,6 +20,34 @@ const maxNationalPower = ref(1000)
 // 当前机遇任务（由AI动态生成）
 const currentQuest = ref('')
 
+// 子阶段与任务队列
+const subStages = [
+  {
+    theme: '巩固蜀中',
+    nextThreshold: 200,
+    quests: [
+      "丞相府邸传来消息，今年的蜀中雨水过多，许多农具因潮湿而加速朽坏，来年春耕恐受影响，百姓忧心忡忡。你是否能构想一种更耐久的材料，或是一种能提升耕作效率的新式农具？",
+      "军医处传来简报，军士在潮湿环境下，伤口极易感染恶化，非战斗减员日益增多。寻常的布帛和草药，已难堪大用。你是否有办法创造出更有效的清创和包扎之物？"
+    ]
+  },
+  {
+    theme: '蜀中振兴',
+    nextThreshold: 500,
+    quests: [
+      "蜀地贸易逐渐恢复，如何进一步提升物资流通效率？",
+      "边境局势紧张，需要一种新式防御工事来保障安全。"
+    ]
+  },
+  {
+    theme: '霸业初成',
+    nextThreshold: Infinity,
+    quests: []
+  }
+]
+
+const currentSubStageIndex = ref(0)
+const questQueue = reactive([...subStages[0].quests])
+
 // 发明成果数据
 const inventionResults = reactive({
   "曲辕犁": {
@@ -49,6 +77,8 @@ const getCurrentGameState = () => {
     historicalEvents: [...historicalEvents],
     inventionResults: { ...inventionResults },
     currentQuest: currentQuest.value,
+    questQueue: [...questQueue],
+    currentSubStageIndex: currentSubStageIndex.value,
     inventionSuggestions: window.currentInventionSuggestions || [],
     isInventing: isInventing.value
   };
@@ -73,6 +103,13 @@ const applyGameState = (state) => {
   }
 
   currentQuest.value = state.currentQuest || '';
+  questQueue.length = 0;
+  if (state.questQueue) {
+    questQueue.push(...state.questQueue);
+  } else {
+    questQueue.push(...subStages[0].quests);
+  }
+  currentSubStageIndex.value = state.currentSubStageIndex || 0;
   isInventing.value = state.isInventing || false;
   
   // 恢复发明建议
@@ -126,9 +163,30 @@ const handleInventionCompleted = async (data) => {
 
     // 获取新的机遇任务
     try {
-      await getNewQuestTask(true);
+      // 完成当前任务后，移除队列首项
+      questQueue.shift();
+
+      // 检查子阶段升级
+      const stage = subStages[currentSubStageIndex.value];
+      if (
+        nationalPower.value >= stage.nextThreshold &&
+        currentSubStageIndex.value < subStages.length - 1
+      ) {
+        currentSubStageIndex.value++;
+        const nextStage = subStages[currentSubStageIndex.value];
+        questQueue.splice(0, questQueue.length, ...(nextStage.quests || []));
+        historicalEvents.unshift({
+          id: Date.now(),
+          type: 'subStage',
+          title: `进入${nextStage.theme}`,
+          description: `新的阶段主题：${nextStage.theme}`,
+          timestamp: new Date().toLocaleString('zh-CN')
+        });
+      }
+
+      await getNewQuestTask();
       console.log('发明完成后，新任务已生成');
-      
+
       // 立即保存游戏状态，确保所有变化被持久化
       const currentState = getCurrentGameState();
       console.log('发明完成，立即保存游戏状态:', currentState);
@@ -190,7 +248,7 @@ const handleRequestNewQuest = async () => {
       historicalEvents.unshift(newEvent);
       
       // 获取新的机遇任务
-      await getNewQuestTask(true);
+      await getNewQuestTask();
       
       // 立即保存游戏状态，确保国力值变化和新任务被持久化
       const currentState = getCurrentGameState();
@@ -208,7 +266,7 @@ const handleRequestNewQuest = async () => {
 };
 
 // 获取新机遇任务的函数
-const getNewQuestTask = async (forceRefresh = false) => {
+const getNewQuestTask = async () => {
   try {
     currentQuest.value = '天工正在思考新的机遇...';
     const questResult = await getNewQuest(currentChapter.value);
@@ -312,10 +370,12 @@ onMounted(async () => {
 
   // 监听所有核心状态的变化，实时保存
   watch(
-    [nationalPower, maxNationalPower, currentChapter, currentQuest, isInventing, 
-     () => [...historicalEvents], 
+    [nationalPower, maxNationalPower, currentChapter, currentQuest, isInventing,
+     () => [...historicalEvents],
      () => ({ ...inventionResults }),
-     () => window.currentInventionSuggestions],
+     () => window.currentInventionSuggestions,
+     () => [...questQueue],
+     currentSubStageIndex],
     () => {
       if (gameStateLoaded.value) {
         const currentState = getCurrentGameState();
