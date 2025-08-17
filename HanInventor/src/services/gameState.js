@@ -17,13 +17,13 @@ export function saveGameState(state) {
       currentChapter: state.currentChapter,
       historicalEvents: state.historicalEvents || [],
       inventionResults: state.inventionResults || {},
-      questQueue: state.questQueue || [], // 修正字段名
+      currentQuest: state.currentQuest || '', // 保存当前任务
+      inventionSuggestions: window.currentInventionSuggestions || [], // 保存发明建议
       isInventing: state.isInventing,
       timestamp: Date.now() // 添加时间戳用于调试
     };
     
     localStorage.setItem(GAME_STATE_KEY, JSON.stringify(gameStateData));
-    console.log('游戏状态已保存:', gameStateData);
   } catch (error) {
     console.error('保存游戏状态失败:', error);
   }
@@ -37,12 +37,10 @@ export function loadGameState() {
   try {
     const savedState = localStorage.getItem(GAME_STATE_KEY);
     if (!savedState) {
-      console.log('未找到保存的游戏状态');
       return null;
     }
     
     const gameState = JSON.parse(savedState);
-    console.log('游戏状态已加载:', gameState);
     return gameState;
   } catch (error) {
     console.error('加载游戏状态失败:', error);
@@ -56,7 +54,6 @@ export function loadGameState() {
 export function clearGameState() {
   try {
     localStorage.removeItem(GAME_STATE_KEY);
-    console.log('游戏状态已清除');
   } catch (error) {
     console.error('清除游戏状态失败:', error);
   }

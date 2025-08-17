@@ -4,7 +4,12 @@
     
     <!-- 当前机遇任务显示 -->
     <div v-if="currentQuest" class="current-quest">
-      <h3>📜 当前机遇</h3>
+      <div class="quest-header">
+        <h3>📜 当前机遇</h3>
+        <button @click="requestNewQuest" class="new-quest-btn" :disabled="isRequestingNewQuest">
+          {{ isRequestingNewQuest ? '思考中...' : '获取新机遇' }}
+        </button>
+      </div>
       <div class="quest-content">
         <div v-if="!showFullQuest" class="quest-summary">
           {{ questSummary }}
@@ -127,6 +132,7 @@ export default {
     const messages = reactive([]);
     const showFullQuest = ref(false);
     const inventionSuggestions = ref([]);
+    const isRequestingNewQuest = ref(false);
     
     // 解析任务内容，提取核心信息
     const parseQuestContent = (content) => {
@@ -415,6 +421,22 @@ export default {
       });
     };
 
+    // 请求新机遇任务
+    const requestNewQuest = async () => {
+      isRequestingNewQuest.value = true;
+      try {
+        // 发送事件到父组件处理
+        await emit('request-new-quest');
+      } catch (error) {
+        console.error('请求新机遇失败:', error);
+      } finally {
+        // 延迟一点时间再恢复按钮状态，确保用户能看到加载效果
+        setTimeout(() => {
+          isRequestingNewQuest.value = false;
+        }, 1000);
+      }
+    };
+
     return {
       userInput,
       currentUserAnswer,
@@ -430,11 +452,13 @@ export default {
       hasMoreContent,
       inventionSuggestions,
       inventionPlaceholder,
+      isRequestingNewQuest,
       toggleQuestDisplay,
       startConversation,
       submitAnswer,
       generateFinalInvention,
       resetConversation,
+      requestNewQuest,
       formatTime
     };
   }
@@ -477,11 +501,43 @@ export default {
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
+.quest-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
 .current-quest h3 {
   color: #B8860B;
-  margin: 0 0 10px 0;
+  margin: 0;
   font-family: '楷体', serif;
   font-size: 18px;
+}
+
+.new-quest-btn {
+  background: linear-gradient(135deg, #FF6B6B 0%, #FF5252 100%);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: bold;
+}
+
+.new-quest-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #FF5252 0%, #FF6B6B 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(255, 107, 107, 0.3);
+}
+
+.new-quest-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .quest-content {

@@ -38,6 +38,7 @@ const inventionResults = reactive({
 const historicalEvents = reactive([])
 const isInventing = ref(false)
 const gameStateLoaded = ref(false);
+// 移除调试信息变量
 
 // 获取当前游戏状态对象
 const getCurrentGameState = () => {
@@ -48,6 +49,7 @@ const getCurrentGameState = () => {
     historicalEvents: [...historicalEvents],
     inventionResults: { ...inventionResults },
     currentQuest: currentQuest.value,
+    inventionSuggestions: window.currentInventionSuggestions || [],
     isInventing: isInventing.value
   };
 };
@@ -72,6 +74,13 @@ const applyGameState = (state) => {
 
   currentQuest.value = state.currentQuest || '';
   isInventing.value = state.isInventing || false;
+  
+  // 恢复发明建议
+  if (state.inventionSuggestions) {
+    window.currentInventionSuggestions = state.inventionSuggestions;
+  } else {
+    window.currentInventionSuggestions = [];
+  }
 };
 
 // 处理发明完成事件
@@ -117,10 +126,13 @@ const handleInventionCompleted = async (data) => {
 
     // 获取新的机遇任务
     try {
-      currentQuest.value = '天工正在思考新的机遇...';
-      const newQuest = await getNewQuest(currentChapter.value);
-      currentQuest.value = newQuest;
-      console.log('新任务已生成:', newQuest);
+      await getNewQuestTask(true);
+      console.log('发明完成后，新任务已生成');
+      
+      // 立即保存游戏状态，确保所有变化被持久化
+      const currentState = getCurrentGameState();
+      console.log('发明完成，立即保存游戏状态:', currentState);
+      saveGameState(currentState);
     } catch (error) {
       console.error('获取新任务失败:', error);
       currentQuest.value = '暂时无法获取新任务，请稍后再试。';
@@ -148,6 +160,88 @@ const restartGame = () => {
   }
 };
 
+// 处理获取新机遇请求
+const handleRequestNewQuest = async () => {
+  // 检查国力值是否足够
+  if (nationalPower.value < 10) {
+    alert('国力不足！需要至少10点国力值才能获取新机遇。');
+    return;
+  }
+
+  // 显示确认提示
+  const confirmed = confirm('断无此事，消耗10国力值略过当前机遇，获取新的机遇任务？');
+  
+  if (confirmed) {
+    try {
+      // 扣除国力值
+      nationalPower.value = Math.max(0, nationalPower.value - 10);
+      
+      // 添加历史事件记录
+      const newEvent = {
+        id: Date.now(),
+        type: 'quest_skip',
+        title: '略过机遇任务',
+        description: '消耗10国力值，略过当前机遇，获取新的机遇任务',
+        impact: '国力消耗 -10',
+        powerIncrease: -10,
+        timestamp: new Date().toLocaleString('zh-CN')
+      };
+      
+      historicalEvents.unshift(newEvent);
+      
+      // 获取新的机遇任务
+      await getNewQuestTask(true);
+      
+      // 立即保存游戏状态，确保国力值变化和新任务被持久化
+      const currentState = getCurrentGameState();
+      console.log('新机遇已获取，立即保存游戏状态:', currentState);
+      saveGameState(currentState);
+      
+      console.log('已获取新机遇任务，国力值扣除10点');
+    } catch (error) {
+      console.error('获取新机遇失败:', error);
+      // 如果获取失败，退还国力值
+      nationalPower.value = Math.min(maxNationalPower.value, nationalPower.value + 10);
+      alert('获取新机遇失败，请稍后再试。国力值已退还。');
+    }
+  }
+};
+
+// 获取新机遇任务的函数
+const getNewQuestTask = async (forceRefresh = false) => {
+  try {
+    currentQuest.value = '天工正在思考新的机遇...';
+    const questResult = await getNewQuest(currentChapter.value);
+    
+    // 处理新的返回格式（包含任务和发明建议）
+    if (questResult && typeof questResult === 'object' && questResult.quest) {
+      // 新格式：包含quest和inventionSuggestions
+      const { quest, inventionSuggestions } = questResult;
+      currentQuest.value = `《${quest.title}》\n\n${quest.description}\n\n难度：${quest.difficulty}\n类别：${quest.category}\n奖励：${quest.reward}`;
+      
+      // 将发明建议存储到全局状态中，供InventionWorkbench使用
+      window.currentInventionSuggestions = inventionSuggestions;
+      console.log('任务和发明建议已生成:', { quest, inventionSuggestions });
+    } else {
+      // 兼容旧格式：直接是任务字符串
+      currentQuest.value = questResult;
+      window.currentInventionSuggestions = [];
+      console.log('任务已生成（旧格式）:', questResult);
+    }
+    
+    // 立即保存游戏状态，确保任务和发明建议被持久化
+    if (gameStateLoaded.value) {
+      const currentState = getCurrentGameState();
+      console.log('新任务已获取，立即保存游戏状态:', currentState);
+      saveGameState(currentState);
+    }
+  } catch (error) {
+    console.error('获取任务失败:', error);
+    currentQuest.value = '暂时无法获取任务，请稍后再试。';
+    window.currentInventionSuggestions = [];
+  }
+};
+
 // 组件挂载时加载游戏状态
 onMounted(async () => {
   console.log('App组件已挂载，尝试加载游戏状态...');
@@ -155,55 +249,87 @@ onMounted(async () => {
   if (hasSavedGameState()) {
     const savedState = loadGameState();
     if (savedState) {
+      console.log('=== 详细调试信息 ===');
+      console.log('savedState.currentQuest:', savedState.currentQuest);
+      console.log('savedState.inventionSuggestions:', savedState.inventionSuggestions);
+      console.log('savedState完整内容:', JSON.stringify(savedState, null, 2));
+      
       applyGameState(savedState);
       console.log('游戏状态已恢复:', savedState);
+      
+      // 如果有缓存的任务，恢复发明建议
+      if (savedState.currentQuest && savedState.inventionSuggestions) {
+        window.currentInventionSuggestions = savedState.inventionSuggestions;
+        console.log('已从savedState恢复发明建议:', savedState.inventionSuggestions);
+      }
     }
   } else {
     console.log('未找到保存的游戏状态，使用初始状态');
   }
 
-  // 如果没有当前任务，获取新任务和发明建议
-  if (!currentQuest.value) {
-    try {
-      currentQuest.value = '天工正在思考新的机遇...';
-      const questResult = await getNewQuest(currentChapter.value);
-      
-      // 处理新的返回格式（包含任务和发明建议）
-      if (questResult && typeof questResult === 'object' && questResult.quest) {
-        // 新格式：包含quest和inventionSuggestions
-        const { quest, inventionSuggestions } = questResult;
-        currentQuest.value = `《${quest.title}》\n\n${quest.description}\n\n难度：${quest.difficulty}\n类别：${quest.category}\n奖励：${quest.reward}`;
-        
-        // 将发明建议存储到全局状态中，供InventionWorkbench使用
-        window.currentInventionSuggestions = inventionSuggestions;
-        console.log('初始任务和发明建议已生成:', { quest, inventionSuggestions });
-      } else {
-        // 兼容旧格式：直接是任务字符串
-        currentQuest.value = questResult;
-        window.currentInventionSuggestions = [];
-        console.log('初始任务已生成（旧格式）:', questResult);
+  console.log('=== 任务缓存检查 ===');
+  console.log('currentQuest.value:', currentQuest.value);
+  console.log('currentQuest.value类型:', typeof currentQuest.value);
+  console.log('currentQuest.value长度:', currentQuest.value?.length);
+  
+  // 改进的缓存机制：检查是否有游戏进度数据
+  const hasGameProgress = historicalEvents.length > 0 || Object.keys(inventionResults).length > 2; // 初始有2个发明
+  const hasValidQuest = currentQuest.value && currentQuest.value.trim() !== '' && currentQuest.value !== '天工正在思考新的机遇...';
+  
+  // 检查是否需要获取新任务
+  if (!hasValidQuest && !hasGameProgress) {
+    // 没有游戏进度和有效任务，获取新任务
+    await getNewQuestTask();
+  } else if (!hasValidQuest && hasGameProgress) {
+    // 有游戏进度但缺少任务，尝试从localStorage恢复任务
+    const savedState = loadGameState();
+    if (savedState && savedState.currentQuest && savedState.currentQuest.trim() !== '') {
+      currentQuest.value = savedState.currentQuest;
+      if (savedState.inventionSuggestions) {
+        window.currentInventionSuggestions = savedState.inventionSuggestions;
       }
-    } catch (error) {
-      console.error('获取初始任务失败:', error);
-      currentQuest.value = '暂时无法获取任务，请稍后再试。';
-      window.currentInventionSuggestions = [];
+    } else {
+      // localStorage中也没有有效任务，获取新任务
+      await getNewQuestTask();
+    }
+  } else {
+    // 使用缓存的任务
+    // 如果有缓存的任务但没有发明建议，尝试从保存的状态中恢复
+    if (!window.currentInventionSuggestions || window.currentInventionSuggestions.length === 0) {
+      const savedState = loadGameState();
+      if (savedState && savedState.inventionSuggestions) {
+        window.currentInventionSuggestions = savedState.inventionSuggestions;
+      }
     }
   }
 
   gameStateLoaded.value = true;
+
+  // 移除调试日志代码
 
   // 等待下一个tick后开始监听状态变化
   await nextTick();
 
   // 监听所有核心状态的变化，实时保存
   watch(
-    () => getCurrentGameState(),
-    (newState) => {
-      console.log('检测到游戏状态变化，自动保存:', newState);
-      saveGameState(newState);
+    [nationalPower, maxNationalPower, currentChapter, currentQuest, isInventing, 
+     () => [...historicalEvents], 
+     () => ({ ...inventionResults }),
+     () => window.currentInventionSuggestions],
+    () => {
+      if (gameStateLoaded.value) {
+        const currentState = getCurrentGameState();
+        console.log('检测到游戏状态变化，自动保存:', currentState);
+        saveGameState(currentState);
+      }
     },
     { deep: true }
   );
+  
+  // 在onMounted结束时，强制保存一次当前状态
+  const finalState = getCurrentGameState();
+  console.log('onMounted结束，强制保存最终状态:', finalState);
+  saveGameState(finalState);
 });
 </script>
 
@@ -218,7 +344,8 @@ onMounted(async () => {
 
     <InventionWorkbench 
       :current-quest="currentQuest"
-      @invention-completed="handleInventionCompleted" 
+      @invention-completed="handleInventionCompleted"
+      @request-new-quest="handleRequestNewQuest"
     />
 
     <NarrativeDisplay :events="historicalEvents" />
@@ -227,6 +354,8 @@ onMounted(async () => {
     <div v-if="gameStateLoaded" class="game-state-indicator">
       <span class="indicator-text">✅ 游戏进度已自动保存</span>
     </div>
+
+    <!-- 移除调试面板 -->
   </div>
 </template>
 
@@ -288,4 +417,6 @@ onMounted(async () => {
   max-height: 400px;
   overflow-y: auto;
 }
+
+/* 移除调试面板样式 */
 </style>
