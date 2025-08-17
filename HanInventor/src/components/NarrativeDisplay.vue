@@ -23,10 +23,16 @@ const extractPowerIncrease = (event) => {
 
 <template>
   <div class="narrative-display">
-    <h2>📜 发明成果与历史记录</h2>
+    <h2>
+      <img src="/icons/scroll.svg" alt="记录" class="icon" />
+      发明成果与历史记录
+    </h2>
     
     <div v-if="props.events.length === 0" class="no-events">
-      <p>🌟 等待您的第一个发明成果...</p>
+      <p>
+        <img src="/icons/quest.svg" alt="等待" class="icon" />
+        等待您的第一个发明成果...
+      </p>
     </div>
     
     <div v-else class="events-container">
@@ -50,6 +56,13 @@ const extractPowerIncrease = (event) => {
 </template>
 
 <style scoped>
+.icon {
+  width: 1.2em;
+  height: 1.2em;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
 .narrative-display {
   background-color: #f5f5dc;
   border-radius: 8px;

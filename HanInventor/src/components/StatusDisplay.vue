@@ -31,7 +31,8 @@ const progressPercentage = computed(() => {
     <div class="status-header">
       <h1>{{ currentChapter }} - 匡扶汉室的发明家</h1>
       <button @click="emit('restart-game')" class="restart-btn" title="重新开始游戏">
-        🔄 重新开始
+        <img src="/icons/restart.svg" alt="重新开始" class="icon" />
+        重新开始
       </button>
     </div>
     
@@ -49,6 +50,13 @@ const progressPercentage = computed(() => {
 </template>
 
 <style scoped>
+.icon {
+  width: 1.2em;
+  height: 1.2em;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
 .status-display {
   background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%);
   color: white;

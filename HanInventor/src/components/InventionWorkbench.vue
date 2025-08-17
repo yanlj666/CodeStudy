@@ -5,7 +5,10 @@
     <!-- 当前机遇任务显示 -->
     <div v-if="currentQuest" class="current-quest">
       <div class="quest-header">
-        <h3>📜 当前机遇</h3>
+        <h3>
+          <img src="/icons/scroll.svg" alt="机遇" class="icon" />
+          当前机遇
+        </h3>
         <button @click="requestNewQuest" class="new-quest-btn" :disabled="isRequestingNewQuest">
           {{ isRequestingNewQuest ? '思考中...' : '获取新机遇' }}
         </button>
@@ -93,7 +96,10 @@
       <!-- 对话完成提示 -->
       <div v-if="isConversationComplete" class="completion-area">
         <div class="completion-message">
-          <h3>🎉 发明方案已完善！</h3>
+          <h3>
+            <img src="/icons/fireworks.svg" alt="完成" class="icon" />
+            发明方案已完善！
+          </h3>
           <p>AI天工已收集到足够的信息，正在为您生成最终的发明方案...</p>
         </div>
         <button @click="generateFinalInvention" :disabled="isGenerating" class="generate-btn">
@@ -466,6 +472,13 @@ export default {
 </script>
 
 <style scoped>
+.icon {
+  width: 1.2em;
+  height: 1.2em;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
 .invention-workbench {
   padding: 20px;
   border: 2px solid #8B4513;
