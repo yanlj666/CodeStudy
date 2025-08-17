@@ -37,7 +37,10 @@ const extractPowerIncrease = (event) => {
       >
         <div class="card-header">
           <h3 class="event-title">{{ event.title }}</h3>
-          <span class="power-gain">+{{ extractPowerIncrease(event) }} 国力</span>
+          <span class="power-gain">
+            <img src="/icons/power.svg" alt="功" class="power-icon" />
+            +{{ extractPowerIncrease(event) }} 国力
+          </span>
         </div>
         <p class="event-description">{{ event.description }}</p>
         <div class="card-footer">
@@ -84,7 +87,7 @@ const extractPowerIncrease = (event) => {
 }
 
 .event-card {
-  background: linear-gradient(135deg, #fff8dc 0%, #f0e68c 100%);
+  background: url('/assets/bamboo-slip.png');
   border: 2px solid #daa520;
   border-radius: 8px;
   padding: 15px;
@@ -109,6 +112,7 @@ const extractPowerIncrease = (event) => {
   margin: 0;
   font-size: 1.2em;
   font-weight: bold;
+  font-family: 'XingKai';
 }
 
 .power-gain {
@@ -118,6 +122,14 @@ const extractPowerIncrease = (event) => {
   border-radius: 12px;
   font-size: 0.9em;
   font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.power-icon {
+  width: 16px;
+  height: 16px;
 }
 
 .event-description {
@@ -151,16 +163,16 @@ const extractPowerIncrease = (event) => {
 }
 
 .narrative-display::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: #c8ad7f;
   border-radius: 3px;
 }
 
 .narrative-display::-webkit-scrollbar-thumb {
-  background: #daa520;
+  background: #8b5a2b;
   border-radius: 3px;
 }
 
 .narrative-display::-webkit-scrollbar-thumb:hover {
-  background: #b8860b;
+  background: #5c3d1e;
 }
 </style>
