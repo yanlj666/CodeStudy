@@ -91,11 +91,85 @@ export const questTool = {
 };
 
 /**
+ * 机遇任务和发明建议生成工具
+ * 用于AI调用以同时生成新的机遇任务和相关发明建议
+ */
+export const questWithSuggestionsTool = {
+  type: "function",
+  function: {
+    name: "generateQuestWithSuggestions",
+    description: "生成新的机遇任务并同时提供相关的发明建议",
+    parameters: {
+      type: "object",
+      properties: {
+        quest: {
+          type: "object",
+          description: "机遇任务信息",
+          properties: {
+            title: {
+              type: "string",
+              description: "机遇任务的标题"
+            },
+            description: {
+              type: "string",
+              description: "机遇任务的详细描述"
+            },
+            difficulty: {
+              type: "string",
+              description: "任务难度等级",
+              enum: ["简单", "中等", "困难", "极难"]
+            },
+            category: {
+              type: "string",
+              description: "任务类别",
+              enum: ["军事", "民生", "农业", "工艺", "医疗", "建筑", "其他"]
+            },
+            reward: {
+              type: "integer",
+              description: "完成任务的潜在国力奖励",
+              minimum: 5,
+              maximum: 100
+            }
+          },
+          required: ["title", "description", "difficulty", "category", "reward"]
+        },
+        inventionSuggestions: {
+          type: "array",
+          description: "与任务相关的发明建议列表",
+          items: {
+            type: "object",
+            properties: {
+              name: {
+                type: "string",
+                description: "发明建议的简短名称"
+              },
+              description: {
+                type: "string",
+                description: "发明建议的简要描述"
+              },
+              category: {
+                type: "string",
+                description: "发明类别",
+                enum: ["农具", "兵器", "医药", "工艺", "机械", "建筑", "交通", "其他"]
+              }
+            },
+            required: ["name", "description", "category"]
+          },
+          minItems: 2,
+          maxItems: 4
+        }
+      },
+      required: ["quest", "inventionSuggestions"]
+    }
+  }
+};
+
+/**
  * 获取所有可用工具的数组
  * @returns {Array} 工具定义数组
  */
 export function getAllTools() {
-  return [inventionTool, questTool];
+  return [inventionTool, questTool, questWithSuggestionsTool];
 }
 
 /**
@@ -112,6 +186,14 @@ export function getInventionTools() {
  */
 export function getQuestTools() {
   return [questTool];
+}
+
+/**
+ * 获取机遇任务和发明建议相关工具
+ * @returns {Array} 机遇任务和发明建议工具数组
+ */
+export function getQuestWithSuggestionsTools() {
+  return [questWithSuggestionsTool];
 }
 
 /**
@@ -133,6 +215,13 @@ export function handleToolCall(toolName, parameters) {
       return {
         success: true,
         message: '机遇任务已生成',
+        data: parameters
+      };
+    
+    case 'generateQuestWithSuggestions':
+      return {
+        success: true,
+        message: '机遇任务和发明建议已生成',
         data: parameters
       };
     

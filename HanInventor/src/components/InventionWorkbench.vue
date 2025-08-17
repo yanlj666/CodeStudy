@@ -28,7 +28,7 @@
         <textarea 
           id="invention-input"
           v-model="userInput" 
-          placeholder="例如：一种能够快速清洁衣物的工具"
+          :placeholder="inventionPlaceholder"
           rows="3"
         ></textarea>
       </div>
@@ -103,7 +103,7 @@
 </template>
 
 <script>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { getNextInventionQuestion, generateInvention } from '../services/aiService.js';
 
 export default {
@@ -125,9 +125,8 @@ export default {
     const isConversationStarted = ref(false);
     const isConversationComplete = ref(false);
     const messages = reactive([]);
-    
-    // 任务显示控制
     const showFullQuest = ref(false);
+    const inventionSuggestions = ref([]);
     
     // 解析任务内容，提取核心信息
     const parseQuestContent = (content) => {
@@ -209,6 +208,41 @@ export default {
       return parsed.hasMore;
     });
     
+    // 监听全局发明建议变化
+    const updateInventionSuggestions = () => {
+      const globalSuggestions = window.currentInventionSuggestions || [];
+      inventionSuggestions.value = [...globalSuggestions];
+    };
+    
+    // 组件挂载时初始化发明建议
+    onMounted(() => {
+      updateInventionSuggestions();
+      // 定期检查全局状态变化
+      const interval = setInterval(updateInventionSuggestions, 500);
+      // 组件卸载时清理定时器
+      return () => clearInterval(interval);
+    });
+    
+    // 监听任务变化，更新发明建议
+    watch(() => props.currentQuest, () => {
+      // 延迟一点时间确保全局状态已更新
+      setTimeout(updateInventionSuggestions, 100);
+    });
+    
+    // 动态生成发明建议的placeholder
+    const inventionPlaceholder = computed(() => {
+      // 检查任务是否正在加载中
+      if (props.currentQuest === '天工正在思考新的机遇...') {
+        return '天工正在思考发明建议中...';
+      }
+      
+      if (inventionSuggestions.value.length > 0) {
+        const examples = inventionSuggestions.value.slice(0, 2).map(s => s.name).join('、');
+        return `例如：${examples}等`;
+      }
+      return '例如：一种能够快速清洁衣物的工具';
+    });
+    
     // 切换任务显示状态
     const toggleQuestDisplay = () => {
       showFullQuest.value = !showFullQuest.value;
@@ -233,7 +267,7 @@ export default {
         // 获取AI的第一个问题
         const aiQuestion = await getNextInventionQuestion([initialMessage]);
         
-        if (aiQuestion === '##DONE##') {
+        if (isConversationDone(aiQuestion)) {
           // 如果AI认为信息已足够，直接完成对话
           isConversationComplete.value = true;
         } else {
@@ -273,7 +307,7 @@ export default {
         // 获取AI的下一个问题
         const nextQuestion = await getNextInventionQuestion([...messages]);
         
-        if (nextQuestion === '##DONE##') {
+        if (isConversationDone(nextQuestion)) {
           // 对话完成
           isConversationComplete.value = true;
           currentAIQuestion.value = '';
@@ -317,7 +351,21 @@ export default {
         resetConversation();
       } catch (error) {
         console.error('生成发明方案失败:', error);
-        alert('生成发明方案失败，请重试');
+        
+        // 根据错误类型提供更具体的错误信息
+        let errorMessage = '生成发明方案失败，请重试';
+        
+        if (error.message.includes('JSON')) {
+          errorMessage = 'AI响应格式错误，请稍后重试';
+        } else if (error.message.includes('API错误')) {
+          errorMessage = 'API调用失败，请检查网络连接或稍后重试';
+        } else if (error.message.includes('工具调用参数')) {
+          errorMessage = 'AI返回数据格式异常，请重新生成';
+        } else if (error.message.includes('未收到预期的工具调用')) {
+          errorMessage = 'AI未能正确生成发明方案，请重新尝试';
+        }
+        
+        alert(errorMessage);
       } finally {
         isGenerating.value = false;
       }
@@ -333,6 +381,30 @@ export default {
       isLoading.value = false;
       isGenerating.value = false;
       messages.length = 0; // 清空数组
+    };
+
+    /**
+     * 安全的会话完成检测函数
+     * 防止注入攻击，使用多重验证机制
+     * @param {string} response - AI的响应内容
+     * @returns {boolean} 是否为会话完成标记
+     */
+    const isConversationDone = (response) => {
+      if (!response || typeof response !== 'string') return false;
+      
+      const trimmed = response.trim();
+      
+      // 1. 精确匹配：只包含##DONE##（忽略大小写和空白字符）
+      if (/^\s*##DONE##\s*$/i.test(trimmed)) return true;
+      
+      // 2. 包含匹配：包含##DONE##但长度限制在50字符内（防止长文本注入）
+      if (/##DONE##/i.test(trimmed) && trimmed.length <= 50) {
+        // 额外验证：确保不包含可疑的脚本标签或特殊字符
+        const suspiciousPatterns = [/<script/i, /javascript:/i, /on\w+=/i, /eval\(/i];
+        return !suspiciousPatterns.some(pattern => pattern.test(trimmed));
+      }
+      
+      return false;
     };
 
     // 格式化时间
@@ -356,6 +428,8 @@ export default {
       questSummary,
       parsedQuestContent,
       hasMoreContent,
+      inventionSuggestions,
+      inventionPlaceholder,
       toggleQuestDisplay,
       startConversation,
       submitAnswer,
@@ -472,6 +546,7 @@ export default {
   border-radius: 5px;
   font-size: 14px;
   resize: vertical;
+  box-sizing: border-box;
 }
 
 .start-btn, .submit-btn, .generate-btn {
@@ -555,6 +630,12 @@ export default {
 .user-input textarea {
   width: 100%;
   margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid #D2B48C;
+  border-radius: 5px;
+  font-size: 14px;
+  resize: vertical;
+  box-sizing: border-box;
 }
 
 .completion-area {

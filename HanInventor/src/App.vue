@@ -162,16 +162,31 @@ onMounted(async () => {
     console.log('未找到保存的游戏状态，使用初始状态');
   }
 
-  // 如果没有当前任务，获取新任务
+  // 如果没有当前任务，获取新任务和发明建议
   if (!currentQuest.value) {
     try {
       currentQuest.value = '天工正在思考新的机遇...';
-      const newQuest = await getNewQuest(currentChapter.value);
-      currentQuest.value = newQuest;
-      console.log('初始任务已生成:', newQuest);
+      const questResult = await getNewQuest(currentChapter.value);
+      
+      // 处理新的返回格式（包含任务和发明建议）
+      if (questResult && typeof questResult === 'object' && questResult.quest) {
+        // 新格式：包含quest和inventionSuggestions
+        const { quest, inventionSuggestions } = questResult;
+        currentQuest.value = `《${quest.title}》\n\n${quest.description}\n\n难度：${quest.difficulty}\n类别：${quest.category}\n奖励：${quest.reward}`;
+        
+        // 将发明建议存储到全局状态中，供InventionWorkbench使用
+        window.currentInventionSuggestions = inventionSuggestions;
+        console.log('初始任务和发明建议已生成:', { quest, inventionSuggestions });
+      } else {
+        // 兼容旧格式：直接是任务字符串
+        currentQuest.value = questResult;
+        window.currentInventionSuggestions = [];
+        console.log('初始任务已生成（旧格式）:', questResult);
+      }
     } catch (error) {
       console.error('获取初始任务失败:', error);
       currentQuest.value = '暂时无法获取任务，请稍后再试。';
+      window.currentInventionSuggestions = [];
     }
   }
 
